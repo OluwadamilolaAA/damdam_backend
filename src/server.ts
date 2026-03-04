@@ -1,27 +1,15 @@
-import dotenv from "dotenv";
-dotenv.config();
+import app from "./app";
+import { connectDb } from "./config/db";
+import { env } from "./config/env";
 
-import express from "express";
-import cors from "cors";
-import cookieParser from "cookie-parser";
-import { connectDB } from "./config/db";
+async function bootstrap(): Promise<void> {
+  await connectDb();
+  app.listen(env.port, () => {
+    console.log(`Server running on port ${env.port}`);
+  });
+}
 
-const app = express();
-
-app.use(express.json());
-app.use(cookieParser());
-app.use(cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-}));
-
-
-
-
-export default app;
-
-const PORT = process.env.PORT || 4000;
-
-connectDB().then(() => {
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+bootstrap().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });
