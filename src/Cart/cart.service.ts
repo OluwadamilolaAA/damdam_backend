@@ -1,4 +1,5 @@
 import ProductModel from "../Product/product.model";
+import CartModel from "./cart.model";
 import { cartRepository } from "./cart.repository";
 import { ApiError } from "../utils/api-error";
 
@@ -18,36 +19,56 @@ export const getMyCart = async (userId: string) => {
   return cart;
 };
 
-export const addItemToCart = async (userId: string, productId: string, quantity: number) => {
+export const addItemToCart = async (
+  userId: string,
+  productId: string,
+  quantity: number,
+) => {
   const product = await ProductModel.findById(productId).exec();
   if (!product || !product.isActive) {
     throw new ApiError(404, "Product not found");
   }
-  if (quantity > product.stock) {
-    throw new ApiError(400, "Requested quantity exceeds available stock");
-  }
 
-  const cart = await getOrCreateCart(userId);
-  const existing = cart.items.find((item) => item.productId.toString() === productId);
+  // FIX: Using MongoDB array update operators for atomicity instead of fetching, modifying in-memory, and saving
+  const existingCart = await CartModel.findOne({ user: userId }).exec();
 
-  if (existing) {
-    const nextQuantity = existing.quantity + quantity;
-    if (nextQuantity > product.stock) {
+  if (!existingCart) {
+    if (quantity > product.stock) {
       throw new ApiError(400, "Requested quantity exceeds available stock");
     }
-    existing.quantity = nextQuantity;
+    await CartModel.create({ user: userId, items: [{ productId, quantity }] });
   } else {
-    cart.items.push({
-      productId: product._id,
-      quantity,
-    });
+    const item = existingCart.items.find(
+      (i: any) => i.productId.toString() === productId,
+    );
+    if (item) {
+      const newQuantity = item.quantity + quantity;
+      if (newQuantity > product.stock) {
+        throw new ApiError(400, "Requested quantity exceeds available stock");
+      }
+      await CartModel.updateOne(
+        { user: userId, "items.productId": productId },
+        { $set: { "items.$.quantity": newQuantity } },
+      );
+    } else {
+      if (quantity > product.stock) {
+        throw new ApiError(400, "Requested quantity exceeds available stock");
+      }
+      await CartModel.updateOne(
+        { user: userId },
+        { $push: { items: { productId, quantity } } },
+      );
+    }
   }
 
-  await cart.save();
   return cartRepository.findByUserIdWithProducts(userId);
 };
 
-export const updateCartItem = async (userId: string, productId: string, quantity: number) => {
+export const updateCartItem = async (
+  userId: string,
+  productId: string,
+  quantity: number,
+) => {
   const product = await ProductModel.findById(productId).exec();
   if (!product || !product.isActive) {
     throw new ApiError(404, "Product not found");
@@ -56,21 +77,25 @@ export const updateCartItem = async (userId: string, productId: string, quantity
     throw new ApiError(400, "Requested quantity exceeds available stock");
   }
 
-  const cart = await getOrCreateCart(userId);
-  const item = cart.items.find((row) => row.productId.toString() === productId);
-  if (!item) {
+  // FIX: Atomic updates instead of fetching and saving manually
+  const result = await CartModel.findOneAndUpdate(
+    { user: userId, "items.productId": productId },
+    { $set: { "items.$.quantity": quantity } },
+  );
+
+  if (result.matchedCount === 0) {
     throw new ApiError(404, "Item not found in cart");
   }
 
-  item.quantity = quantity;
-  await cart.save();
   return cartRepository.findByUserIdWithProducts(userId);
 };
 
 export const removeCartItem = async (userId: string, productId: string) => {
-  const cart = await getOrCreateCart(userId);
-  cart.items = cart.items.filter((item) => item.productId.toString() !== productId);
-  await cart.save();
+  // FIX: Use $pull operator for atomic removal without needing to fetch and parse the array
+  await CartModel.updateOne(
+    { user: userId },
+    { $pull: { items: { productId } } },
+  );
   return cartRepository.findByUserIdWithProducts(userId);
 };
 

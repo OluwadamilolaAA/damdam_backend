@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import passport from "passport";
+import jwt from "jsonwebtoken";
 import {
   parseForgotPasswordDto,
   parseLoginDto,
@@ -8,7 +9,10 @@ import {
 } from "./auth.dto";
 import { asyncHandler } from "../utils/async-handler";
 import { ApiError } from "../utils/api-error";
-import { clearRefreshTokenCookie, setRefreshTokenCookie } from "../utils/cookies";
+import {
+  clearRefreshTokenCookie,
+  setRefreshTokenCookie,
+} from "../utils/cookies";
 import {
   forgotPassword,
   login,
@@ -22,76 +26,91 @@ import { env } from "../config/env";
 import { ensureGoogleOAuthConfigured } from "../config/passport";
 import { verifyRefreshToken } from "../utils/token";
 
-export const registerHandler = asyncHandler(async (req: Request, res: Response) => {
-  const payload = parseRegisterDto(req.body);
-  const result = await register(payload);
+export const registerHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    const payload = parseRegisterDto(req.body);
+    const result = await register(payload);
 
-  res.status(201).json({
-    message: "Registration successful. Please login.",
-    user: result.user,
-  });
-});
+    res.status(201).json({
+      message: "Registration successful. Please login.",
+      user: result.user,
+    });
+  },
+);
 
-export const loginHandler = asyncHandler(async (req: Request, res: Response) => {
-  const payload = parseLoginDto(req.body);
-  const result = await login(payload);
+export const loginHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    const payload = parseLoginDto(req.body);
+    const result = await login(payload);
 
-  setRefreshTokenCookie(res, result.refreshToken);
-  res.status(200).json({
-    accessToken: result.accessToken,
-    user: result.user,
-  });
-});
+    setRefreshTokenCookie(res, result.refreshToken);
+    res.status(200).json({
+      accessToken: result.accessToken,
+      user: result.user,
+    });
+  },
+);
 
-export const refreshHandler = asyncHandler(async (req: Request, res: Response) => {
-  const refreshToken = req.cookies?.refreshToken as string | undefined;
-  if (!refreshToken) {
-    throw new ApiError(401, "Missing refresh token cookie");
-  }
-
-  const result = await refresh(refreshToken);
-  setRefreshTokenCookie(res, result.refreshToken);
-
-  res.status(200).json({
-    accessToken: result.accessToken,
-    user: result.user,
-  });
-});
-
-export const logoutHandler = asyncHandler(async (req: Request, res: Response) => {
-  const refreshToken = req.cookies?.refreshToken as string | undefined;
-  if (refreshToken) {
-    try {
-      const payload = verifyRefreshToken(refreshToken);
-      await logout(payload.sub);
-    } catch {
-      
+export const refreshHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    const refreshToken = req.cookies?.refreshToken as string | undefined;
+    if (!refreshToken) {
+      throw new ApiError(401, "Missing refresh token cookie");
     }
-  }
 
-  clearRefreshTokenCookie(res);
-  res.status(200).json({ message: "Logged out successfully" });
-});
+    const result = await refresh(refreshToken);
+    setRefreshTokenCookie(res, result.refreshToken);
 
-export const forgotPasswordHandler = asyncHandler(async (req: Request, res: Response) => {
-  const payload = parseForgotPasswordDto(req.body);
-  await forgotPassword(payload.email);
+    res.status(200).json({
+      accessToken: result.accessToken,
+      user: result.user,
+    });
+  },
+);
 
-  res.status(200).json({
-    message: "If that email exists, a reset OTP has been sent.",
-  });
-});
+export const logoutHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    const refreshToken = req.cookies?.refreshToken as string | undefined;
+    if (refreshToken) {
+      // FIX: Decode directly to still log out even if token is expired.
+      // We don't care about it being verified here, we just want to remove exactly it from DB.
+      const decoded = jwt.decode(refreshToken) as { sub?: string } | null;
+      if (decoded && decoded.sub) {
+        await logout(decoded.sub, refreshToken);
+      }
+    }
 
-export const resetPasswordHandler = asyncHandler(async (req: Request, res: Response) => {
-  const payload = parseResetPasswordDto(req.body);
-  await resetPassword(payload.email, payload.otp, payload.newPassword);
+    clearRefreshTokenCookie(res);
+    res.status(200).json({ message: "Logged out successfully" });
+  },
+);
 
-  res.status(200).json({
-    message: "Password reset successful. Please login again.",
-  });
-});
+export const forgotPasswordHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    const payload = parseForgotPasswordDto(req.body);
+    await forgotPassword(payload.email);
 
-const buildRedirectUrl = (baseUrl: string, params: Record<string, string>): string => {
+    res.status(200).json({
+      message: "If that email exists, a reset OTP has been sent.",
+    });
+  },
+);
+
+export const resetPasswordHandler = asyncHandler(
+  async (req: Request, res: Response) => {
+    const payload = parseResetPasswordDto(req.body);
+    await resetPassword(payload.email, payload.otp, payload.newPassword);
+
+    res.status(200).json({
+      message: "Password reset successful. Please login again.",
+    });
+  },
+);
+
+const buildRedirectUrl = (
+  baseUrl: string,
+  params: Record<string, string>,
+): string => {
   const url = new URL(baseUrl);
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
@@ -99,7 +118,11 @@ const buildRedirectUrl = (baseUrl: string, params: Record<string, string>): stri
   return url.toString();
 };
 
-export const googleAuthHandler = (req: Request, res: Response, next: NextFunction) => {
+export const googleAuthHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   ensureGoogleOAuthConfigured();
   return passport.authenticate("google", {
     scope: ["profile", "email"],
@@ -110,7 +133,7 @@ export const googleAuthHandler = (req: Request, res: Response, next: NextFunctio
 export const googleAuthCallbackHandler = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   ensureGoogleOAuthConfigured();
 
@@ -153,6 +176,6 @@ export const googleAuthCallbackHandler = (
         });
         res.redirect(302, failureUrl);
       }
-    }
+    },
   )(req, res, next);
 };
