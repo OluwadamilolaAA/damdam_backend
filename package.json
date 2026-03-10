@@ -7,13 +7,15 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "seed:admin": "npm run build && node dist/scripts/seed-admin.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@types/swagger-ui-express": "^4.1.8",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -25,7 +27,8 @@
     "mongoose": "^9.2.2",
     "nodemailer": "^8.0.1",
     "passport": "^0.7.0",
-    "passport-google-oauth20": "^2.0.0"
+    "passport-google-oauth20": "^2.0.0",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

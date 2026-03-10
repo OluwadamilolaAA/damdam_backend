@@ -10,9 +10,10 @@ exports.createProductHandler = (0, async_handler_1.asyncHandler)(async (req, res
     const product = await (0, product_service_1.createProduct)(payload);
     res.status(201).json({ product });
 });
-exports.listProductsHandler = (0, async_handler_1.asyncHandler)(async (_req, res) => {
-    const products = await (0, product_service_1.listProducts)();
-    res.status(200).json({ products });
+exports.listProductsHandler = (0, async_handler_1.asyncHandler)(async (req, res) => {
+    const query = (0, product_dto_1.parseListProductsQueryDto)(req.query);
+    const result = await (0, product_service_1.listProducts)(query);
+    res.status(200).json(result);
 });
 exports.listAllProductsAdminHandler = (0, async_handler_1.asyncHandler)(async (_req, res) => {
     const products = await (0, product_service_1.listAllProductsForAdmin)();

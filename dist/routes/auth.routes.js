@@ -22,4 +22,6 @@ router.post("/refresh", authLimiter, auth_controller_1.refreshHandler);
 router.post("/logout", auth_controller_1.logoutHandler);
 router.post("/forgot-password", authLimiter, auth_controller_1.forgotPasswordHandler);
 router.post("/reset-password", authLimiter, auth_controller_1.resetPasswordHandler);
+router.get("/google", auth_controller_1.googleAuthHandler);
+router.get("/google/callback", auth_controller_1.googleAuthCallbackHandler);
 exports.default = router;

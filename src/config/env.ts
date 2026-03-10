@@ -29,4 +29,11 @@ export const env = {
   smtpUser: process.env.SMTP_USER,
   smtpPass: process.env.SMTP_PASS,
   smtpFrom: process.env.SMTP_FROM || "no-reply@damdam.local",
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  googleCallbackUrl: process.env.GOOGLE_CALLBACK_URL,
+  googleAuthSuccessRedirect:
+    process.env.GOOGLE_AUTH_SUCCESS_REDIRECT || `${process.env.CLIENT_ORIGIN || "http://localhost:5173"}/auth/callback`,
+  googleAuthFailureRedirect:
+    process.env.GOOGLE_AUTH_FAILURE_REDIRECT || `${process.env.CLIENT_ORIGIN || "http://localhost:5173"}/login`,
 };

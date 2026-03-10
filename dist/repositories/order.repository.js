@@ -19,6 +19,6 @@ exports.orderRepository = {
         return order_model_1.default.find({}).sort({ createdAt: -1 }).exec();
     },
     updateStatus(orderId, status) {
-        return order_model_1.default.findByIdAndUpdate(orderId, { $set: { status } }, { new: true }).exec();
+        return order_model_1.default.findByIdAndUpdate(orderId, { $set: { status } }, { returnDocument: 'after' }).exec();
     },
 };

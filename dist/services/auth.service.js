@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetPassword = exports.forgotPassword = exports.logout = exports.refresh = exports.login = exports.register = void 0;
+exports.resetPassword = exports.forgotPassword = exports.logout = exports.refresh = exports.loginWithGoogle = exports.login = exports.register = void 0;
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const crypto_1 = __importDefault(require("crypto"));
 const user_model_1 = require("../models/user.model");
@@ -26,12 +26,15 @@ const issueTokens = async (user) => {
     const accessToken = (0, token_1.generateAccessToken)(payload);
     const refreshToken = (0, token_1.generateRefreshToken)(payload);
     const refreshTokenHash = await bcrypt_1.default.hash(refreshToken, REFRESH_HASH_ROUNDS);
-    user.refreshTokenHashes = [refreshTokenHash, ...user.refreshTokenHashes].slice(0, MAX_REFRESH_TOKENS_PER_USER);
-    await user.save();
+    const nextRefreshTokenHashes = [refreshTokenHash, ...user.refreshTokenHashes].slice(0, MAX_REFRESH_TOKENS_PER_USER);
+    const updatedUser = await user_model_1.UserModel.findByIdAndUpdate(user._id, { $set: { refreshTokenHashes: nextRefreshTokenHashes } }, { returnDocument: 'after' }).exec();
+    if (!updatedUser) {
+        throw new api_error_1.ApiError(404, "User not found");
+    }
     return {
         accessToken,
         refreshToken,
-        user: sanitizeUser(user),
+        user: sanitizeUser(updatedUser),
     };
 };
 const register = async (input) => {
@@ -66,6 +69,29 @@ const login = async (input) => {
     return issueTokens(user);
 };
 exports.login = login;
+const loginWithGoogle = async (profile) => {
+    let user = await user_model_1.UserModel.findOne({ googleId: profile.googleId }).exec();
+    if (!user) {
+        user = await user_model_1.UserModel.findOne({ email: profile.email }).exec();
+    }
+    if (!user) {
+        user = await user_model_1.UserModel.create({
+            name: profile.name,
+            email: profile.email,
+            googleId: profile.googleId,
+            role: user_model_1.Role.USER,
+        });
+    }
+    else if (!user.googleId) {
+        user.googleId = profile.googleId;
+        if (!user.name) {
+            user.name = profile.name;
+        }
+        await user.save();
+    }
+    return issueTokens(user);
+};
+exports.loginWithGoogle = loginWithGoogle;
 const refresh = async (incomingRefreshToken) => {
     const payload = (0, token_1.verifyRefreshToken)(incomingRefreshToken);
     const user = await user_model_1.UserModel.findById(payload.sub).exec();
