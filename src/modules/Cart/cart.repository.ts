@@ -13,6 +13,10 @@ export const cartRepository = {
     return CartModel.create({ user: userId, items: [] });
   },
   clear(userId: string) {
-    return CartModel.findOneAndUpdate({ user: userId }, { $set: { items: [] } }, { returnDocument: 'after' }).exec();
+    return CartModel.findOneAndUpdate(
+      { user: userId },
+      { $set: { items: [] } },
+      { returnDocument: "after" },
+    ).exec();
   },
 };

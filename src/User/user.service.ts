@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import { Types } from "mongoose";
 import { CreateAdminDto } from "./user.dto";
-import { Role, UserModel } from "../Auth/auth.model";
+import { Role, UserModel } from "../modules/Auth/auth.model";
 import { ApiError } from "../utils/api-error";
 
 export const getCurrentUser = async (userId: string) => {

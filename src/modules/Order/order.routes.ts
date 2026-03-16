@@ -5,8 +5,8 @@ import {
   createOrderHandler,
   getOrderByIdHandler,
   myOrdersHandler,
-} from "../Order/order.controller";
-import { requireAuth, requireRole } from "../middlewares/auth.middleware";
+} from "./order.controller";
+import { requireAuth, requireRole } from "../../middlewares/auth.middleware";
 import { Role } from "../Auth/auth.model";
 
 const router = Router();

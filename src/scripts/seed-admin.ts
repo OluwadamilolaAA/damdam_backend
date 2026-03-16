@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { connectDb } from "../config/db";
-import { Role, UserModel } from "../Auth/auth.model";
+import { Role, UserModel } from "../modules/Auth/auth.model";
 
 dotenv.config();
 

@@ -31,7 +31,7 @@ const UserSchema = new Schema<UserDocument>(
     resetPasswordOtpHash: { type: String },
     resetPasswordOtpExpiresAt: { type: Date },
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
 
 export const UserModel: Model<UserDocument> = mongoose.model<UserDocument>(

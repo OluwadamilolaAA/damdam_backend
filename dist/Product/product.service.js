@@ -28,16 +28,19 @@ const buildProductFilter = (input) => {
         filter.price = priceFilter;
     }
     if (input.search) {
-        const keywordRegex = new RegExp(escapeRegex(input.search), "i");
-        filter.$or = [
-            { name: keywordRegex },
-            { description: keywordRegex },
-            { category: keywordRegex },
-        ];
+        // Using fast $text index search instead of
+        // full collection scans typical with unanchored regexes
+        filter.$text = { $search: input.search };
     }
     return filter;
 };
-const ALLOWED_SORT_FIELDS = new Set(["price", "createdAt", "updatedAt", "name", "stock"]);
+const ALLOWED_SORT_FIELDS = new Set([
+    "price",
+    "createdAt",
+    "updatedAt",
+    "name",
+    "stock",
+]);
 const buildSort = (sortValue) => {
     if (!sortValue) {
         return { createdAt: -1 };

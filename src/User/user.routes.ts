@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { createAdminHandler, meHandler } from "../User/user.controller";
 import { requireAuth, requireRole } from "../middlewares/auth.middleware";
-import { Role } from "../Auth/auth.model";
+import { Role } from "../modules/Auth/auth.model";
 
 const router = Router();
 

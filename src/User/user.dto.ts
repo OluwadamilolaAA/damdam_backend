@@ -1,24 +1,14 @@
-import { ApiError } from "../utils/api-error";
-import { requireEmail, requireString } from "../utils/validators";
+import { z } from "zod";
+import { parseWithSchema } from "../utils/zod";
 
-export interface CreateAdminDto {
-  name: string;
-  email: string;
-  password: string;
-}
+const createAdminSchema = z.object({
+  name: z.string().trim().min(1, "name is required"),
+  email: z.string().trim().email("A valid email is required").toLowerCase(),
+  password: z.string().trim().min(8, "password must be at least 8 characters"),
+});
+
+export type CreateAdminDto = z.infer<typeof createAdminSchema>;
 
 export const parseCreateAdminDto = (body: unknown): CreateAdminDto => {
-  const data = body as Record<string, unknown>;
-  const password = requireString(data.password, "password");
-
-  if (password.length < 8) {
-    throw new ApiError(400, "password must be at least 8 characters");
-  }
-
-  return {
-    name: requireString(data.name, "name"),
-    email: requireEmail(data.email),
-    password,
-  };
+  return parseWithSchema(createAdminSchema, body);
 };
-

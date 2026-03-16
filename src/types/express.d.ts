@@ -1,4 +1,4 @@
-import { Role } from "../Auth/auth.model";
+import { Role } from "../modules/Auth/auth.model";
 
 declare global {
   namespace Express {

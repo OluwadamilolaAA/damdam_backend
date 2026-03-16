@@ -7,6 +7,7 @@ exports.clearCart = exports.removeCartItem = exports.updateCartItem = exports.ad
 const product_model_1 = __importDefault(require("../Product/product.model"));
 const cart_repository_1 = require("./cart.repository");
 const api_error_1 = require("../utils/api-error");
+const cart_model_1 = require("./cart.model");
 const getOrCreateCart = async (userId) => {
     const existing = await cart_repository_1.cartRepository.findByUserId(userId);
     if (existing) {
@@ -30,47 +31,58 @@ const addItemToCart = async (userId, productId, quantity) => {
     if (quantity > product.stock) {
         throw new api_error_1.ApiError(400, "Requested quantity exceeds available stock");
     }
-    const cart = await getOrCreateCart(userId);
-    const existing = cart.items.find((item) => item.productId.toString() === productId);
-    if (existing) {
-        const nextQuantity = existing.quantity + quantity;
-        if (nextQuantity > product.stock) {
-            throw new api_error_1.ApiError(400, "Requested quantity exceeds available stock");
-        }
-        existing.quantity = nextQuantity;
-    }
-    else {
-        cart.items.push({
-            productId: product._id,
-            quantity,
+    // Using MongoDB array update operators for atomicity instead of fetching, modifying in-memory, and saving
+    const existingCart = await cart_model_1.CartModel.findOne({ user: userId }).exec();
+    if (!existingCart) {
+        // No cart yet → create one
+        await cart_model_1.CartModel.create({
+            user: userId,
+            items: [{ productId, quantity }],
         });
     }
-    await cart.save();
+    else {
+        // Cart exists → update it
+        const item = existingCart.items.find((i) => i.productId.toString() === productId);
+        if (item) {
+            const newQuantity = item.quantity + quantity;
+            if (newQuantity > product.stock) {
+                throw new api_error_1.ApiError(400, "Requested quantity exceeds available stock");
+            }
+            await cart_model_1.CartModel.updateOne({ user: userId, "items.productId": productId }, { $set: { "items.$.quantity": newQuantity } });
+        }
+        else {
+            await cart_model_1.CartModel.updateOne({ user: userId }, { $push: { items: { productId, quantity } } });
+        }
+    }
     return cart_repository_1.cartRepository.findByUserIdWithProducts(userId);
 };
 exports.addItemToCart = addItemToCart;
 const updateCartItem = async (userId, productId, quantity) => {
+    // Check if product exists and is active
     const product = await product_model_1.default.findById(productId).exec();
     if (!product || !product.isActive) {
         throw new api_error_1.ApiError(404, "Product not found");
     }
+    // Check stock availability
     if (quantity > product.stock) {
         throw new api_error_1.ApiError(400, "Requested quantity exceeds available stock");
     }
-    const cart = await getOrCreateCart(userId);
-    const item = cart.items.find((row) => row.productId.toString() === productId);
-    if (!item) {
+    // Atomic update
+    const updatedCart = await cart_model_1.CartModel.findOneAndUpdate({ user: userId, "items.productId": productId }, { $set: { "items.$.quantity": quantity } }, {
+        new: true, // return updated document
+        runValidators: true // enforce schema validation
+    });
+    // If item not found in cart
+    if (!updatedCart) {
         throw new api_error_1.ApiError(404, "Item not found in cart");
     }
-    item.quantity = quantity;
-    await cart.save();
+    // Return cart with populated products
     return cart_repository_1.cartRepository.findByUserIdWithProducts(userId);
 };
 exports.updateCartItem = updateCartItem;
 const removeCartItem = async (userId, productId) => {
-    const cart = await getOrCreateCart(userId);
-    cart.items = cart.items.filter((item) => item.productId.toString() !== productId);
-    await cart.save();
+    // Use $pull operator for atomic removal without needing to fetch and parse the array
+    await cart_model_1.CartModel.updateOne({ user: userId }, { $pull: { items: { productId } } });
     return cart_repository_1.cartRepository.findByUserIdWithProducts(userId);
 };
 exports.removeCartItem = removeCartItem;

@@ -26,8 +26,11 @@ const issueTokens = async (user) => {
     const accessToken = (0, token_1.generateAccessToken)(payload);
     const refreshToken = (0, token_1.generateRefreshToken)(payload);
     const refreshTokenHash = await bcrypt_1.default.hash(refreshToken, REFRESH_HASH_ROUNDS);
-    const nextRefreshTokenHashes = [refreshTokenHash, ...user.refreshTokenHashes].slice(0, MAX_REFRESH_TOKENS_PER_USER);
-    const updatedUser = await auth_model_1.UserModel.findByIdAndUpdate(user._id, { $set: { refreshTokenHashes: nextRefreshTokenHashes } }, { returnDocument: 'after' }).exec();
+    const nextRefreshTokenHashes = [
+        refreshTokenHash,
+        ...user.refreshTokenHashes,
+    ].slice(0, MAX_REFRESH_TOKENS_PER_USER);
+    const updatedUser = await auth_model_1.UserModel.findByIdAndUpdate(user._id, { $set: { refreshTokenHashes: nextRefreshTokenHashes } }, { returnDocument: "after" }).exec();
     if (!updatedUser) {
         throw new api_error_1.ApiError(404, "User not found");
     }
@@ -99,22 +102,44 @@ const refresh = async (incomingRefreshToken) => {
         throw new api_error_1.ApiError(401, "Invalid refresh token");
     }
     let isMatch = false;
+    let matchedHash = "";
     for (const tokenHash of user.refreshTokenHashes) {
         if (await bcrypt_1.default.compare(incomingRefreshToken, tokenHash)) {
             isMatch = true;
+            matchedHash = tokenHash;
             break;
         }
     }
     if (!isMatch) {
         throw new api_error_1.ApiError(401, "Invalid refresh token");
     }
-    // Token rotation: remove old token hashes and keep only fresh ones.
-    user.refreshTokenHashes = [];
+    // Proper token rotation: remove only the specific token hash that was just used
+    // rather than clearing the array entirely, which would log the user out on all other devices.
+    user.refreshTokenHashes = user.refreshTokenHashes.filter((hash) => hash !== matchedHash);
     return issueTokens(user);
 };
 exports.refresh = refresh;
-const logout = async (userId) => {
-    await auth_model_1.UserModel.findByIdAndUpdate(userId, { $set: { refreshTokenHashes: [] } }).exec();
+const logout = async (userId, incomingRefreshToken) => {
+    if (incomingRefreshToken) {
+        // Only remove the token that is explicitly being logged out
+        const user = await auth_model_1.UserModel.findById(userId).exec();
+        if (!user)
+            return;
+        const hashesToKeep = [];
+        for (const tokenHash of user.refreshTokenHashes) {
+            if (!(await bcrypt_1.default.compare(incomingRefreshToken, tokenHash))) {
+                hashesToKeep.push(tokenHash);
+            }
+        }
+        user.refreshTokenHashes = hashesToKeep;
+        await user.save();
+    }
+    else {
+        // Fallback if no token was provided, logs out of all devices
+        await auth_model_1.UserModel.findByIdAndUpdate(userId, {
+            $set: { refreshTokenHashes: [] },
+        }).exec();
+    }
 };
 exports.logout = logout;
 const hashOtp = (otp) => crypto_1.default.createHash("sha256").update(otp).digest("hex");

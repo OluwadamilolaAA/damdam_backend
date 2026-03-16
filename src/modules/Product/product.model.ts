@@ -20,7 +20,7 @@ const ProductSchema = new Schema<ProductDocument>(
     category: { type: String, trim: true },
     isActive: { type: Boolean, default: true, index: true },
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
 
 ProductSchema.index({ name: "text", description: "text", category: "text" });

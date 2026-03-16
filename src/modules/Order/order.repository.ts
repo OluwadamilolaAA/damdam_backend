@@ -14,6 +14,10 @@ export const orderRepository = {
     return OrderModel.find({}).sort({ createdAt: -1 }).exec();
   },
   updateStatus(orderId: string, status: string) {
-    return OrderModel.findByIdAndUpdate(orderId, { $set: { status } }, { returnDocument: 'after' }).exec();
+    return OrderModel.findByIdAndUpdate(
+      orderId,
+      { $set: { status } },
+      { returnDocument: "after" },
+    ).exec();
   },
 };

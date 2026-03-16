@@ -6,7 +6,7 @@ import {
   removeCartItemHandler,
   updateCartItemHandler,
 } from "./cart.controller";
-import { requireAuth } from "../middlewares/auth.middleware";
+import { requireAuth } from "../../middlewares/auth.middleware";
 
 const router = Router();
 

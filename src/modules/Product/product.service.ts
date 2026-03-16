@@ -5,7 +5,7 @@ import {
 } from "./product.dto";
 import { ProductDocument } from "./product.model";
 import { productRepository } from "./product.repository";
-import { ApiError } from "../utils/api-error";
+import { ApiError } from "../../utils/api-error";
 
 export const createProduct = async (input: CreateProductDto) => {
   return productRepository.create(input);
@@ -25,16 +25,21 @@ interface ListProductsResponse {
   meta: ListProductsResponseMeta;
 }
 
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegex = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const buildProductFilter = (input: ListProductsQueryDto): Record<string, unknown> => {
+const buildProductFilter = (
+  input: ListProductsQueryDto,
+): Record<string, unknown> => {
   const filter: Record<string, unknown> = {
     isActive: true,
   };
 
   if (input.categories && input.categories.length > 0) {
     filter.category = {
-      $in: input.categories.map((category) => new RegExp(`^${escapeRegex(category)}$`, "i")),
+      $in: input.categories.map(
+        (category) => new RegExp(`^${escapeRegex(category)}$`, "i"),
+      ),
     };
   }
 
@@ -50,18 +55,21 @@ const buildProductFilter = (input: ListProductsQueryDto): Record<string, unknown
   }
 
   if (input.search) {
-    const keywordRegex = new RegExp(escapeRegex(input.search), "i");
-    filter.$or = [
-      { name: keywordRegex },
-      { description: keywordRegex },
-      { category: keywordRegex },
-    ];
+    // Using fast $text index search instead of
+    // full collection scans typical with unanchored regexes
+    filter.$text = { $search: input.search };
   }
 
   return filter;
 };
 
-const ALLOWED_SORT_FIELDS = new Set(["price", "createdAt", "updatedAt", "name", "stock"]);
+const ALLOWED_SORT_FIELDS = new Set([
+  "price",
+  "createdAt",
+  "updatedAt",
+  "name",
+  "stock",
+]);
 
 const buildSort = (sortValue?: string): Record<string, 1 | -1> => {
   if (!sortValue) {
@@ -81,7 +89,7 @@ const buildSort = (sortValue?: string): Record<string, 1 | -1> => {
     if (!ALLOWED_SORT_FIELDS.has(field)) {
       throw new ApiError(
         400,
-        `Unsupported sort field: ${field}. Allowed fields: ${Array.from(ALLOWED_SORT_FIELDS).join(", ")}`
+        `Unsupported sort field: ${field}. Allowed fields: ${Array.from(ALLOWED_SORT_FIELDS).join(", ")}`,
       );
     }
 
@@ -95,7 +103,9 @@ const buildSort = (sortValue?: string): Record<string, 1 | -1> => {
   return sort;
 };
 
-export const listProducts = async (query: ListProductsQueryDto): Promise<ListProductsResponse> => {
+export const listProducts = async (
+  query: ListProductsQueryDto,
+): Promise<ListProductsResponse> => {
   const filter = buildProductFilter(query);
   const sort = buildSort(query.sort);
   const { products, total } = await productRepository.findAllPaginated({
@@ -130,7 +140,10 @@ export const getProductById = async (productId: string) => {
   return product;
 };
 
-export const updateProduct = async (productId: string, input: UpdateProductDto) => {
+export const updateProduct = async (
+  productId: string,
+  input: UpdateProductDto,
+) => {
   const updated = await productRepository.updateById(productId, input);
   if (!updated) {
     throw new ApiError(404, "Product not found");

@@ -18,6 +18,6 @@ exports.cartRepository = {
         return cart_model_1.default.create({ user: userId, items: [] });
     },
     clear(userId) {
-        return cart_model_1.default.findOneAndUpdate({ user: userId }, { $set: { items: [] } }, { returnDocument: 'after' }).exec();
+        return cart_model_1.default.findOneAndUpdate({ user: userId }, { $set: { items: [] } }, { returnDocument: "after" }).exec();
     },
 };

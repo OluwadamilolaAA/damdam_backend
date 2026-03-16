@@ -66,7 +66,7 @@ const OrderSchema = new Schema<OrderDocument>(
     },
     notes: { type: String, trim: true },
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
 
 OrderSchema.index({ createdAt: -1 });

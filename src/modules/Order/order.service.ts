@@ -1,15 +1,22 @@
-import { OrderStatus, PaymentStatus } from "./order.model";
-import { Types } from "mongoose";
+import OrderModel, { OrderStatus, PaymentStatus } from "./order.model";
+import mongoose, { Types } from "mongoose";
 import ProductModel from "../Product/product.model";
 import { orderRepository } from "./order.repository";
 import { cartRepository } from "../Cart/cart.repository";
-import { ApiError } from "../utils/api-error";
+import { ApiError } from "../../utils/api-error";
+import { CartModel } from "../Cart/cart.model";
 
 export const createOrderFromCart = async (userId: string, notes?: string) => {
-  const cart = await cartRepository.findByUserId(userId);
-  if (!cart || cart.items.length === 0) {
-    throw new ApiError(400, "Cart is empty");
-  }
+  //  Start a MongoDB session to ensure atomic transactions
+  // This prevents scenarios where stock is deducted but order creation fails
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const cart = await CartModel.findOne({ user: userId }).session(session);
+    if (!cart || cart.items.length === 0) {
+      throw new ApiError(400, "Cart is empty");
+    }
 
   const orderItems: Array<{
     productId: Types.ObjectId;
@@ -21,13 +28,15 @@ export const createOrderFromCart = async (userId: string, notes?: string) => {
   let subtotal = 0;
 
   for (const cartItem of cart.items) {
-    const product = await ProductModel.findById(cartItem.productId).exec();
-    if (!product || !product.isActive) {
-      throw new ApiError(400, "One or more products in cart are unavailable");
-    }
-    if (cartItem.quantity > product.stock) {
-      throw new ApiError(400, `Insufficient stock for ${product.name}`);
-    }
+      const product = await ProductModel.findById(cartItem.productId).session(
+        session,
+      );
+      if (!product || !product.isActive) {
+        throw new ApiError(400, "One or more products in cart are unavailable");
+      }
+      if (cartItem.quantity > product.stock) {
+        throw new ApiError(400, `Insufficient stock for ${product.name}`);
+      }
 
     const lineTotal = product.price * cartItem.quantity;
     subtotal += lineTotal;
@@ -43,28 +52,43 @@ export const createOrderFromCart = async (userId: string, notes?: string) => {
 
   for (const cartItem of cart.items) {
     await ProductModel.findByIdAndUpdate(cartItem.productId, {
-      $inc: { stock: -cartItem.quantity },
-    }).exec();
+      $inc: { stock: -cartItem.quantity }},
+      { session },
+  );
+
   }
 
   const shippingFee = 0;
   const totalAmount = subtotal + shippingFee;
 
-  const order = await orderRepository.create({
-    user: cart.user,
-    items: orderItems,
-    subtotal,
-    shippingFee,
-    totalAmount,
-    status: OrderStatus.PENDING,
-    paymentStatus: PaymentStatus.UNPAID,
-    notes,
-  });
+  const [order] = await OrderModel.create(
+      [
+        {
+          user: cart.user,
+          items: orderItems,
+          subtotal,
+          shippingFee,
+          totalAmount,
+          status: OrderStatus.PENDING,
+          paymentStatus: PaymentStatus.UNPAID,
+          notes,
+        },
+      ],
+      { session },
+    );
 
   cart.items = [];
-  await cart.save();
+  await cart.save({ session });
 
-  return order;
+    await session.commitTransaction();
+    return order;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+
 };
 
 export const getMyOrders = async (userId: string) => {

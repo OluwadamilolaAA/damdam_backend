@@ -7,9 +7,9 @@ import {
   removeCartItem,
   updateCartItem,
 } from "./cart.service";
-import { asyncHandler } from "../utils/async-handler";
-import { ApiError } from "../utils/api-error";
-import { requireObjectId } from "../utils/validators";
+import { asyncHandler } from "../../utils/async-handler";
+import { ApiError } from "../../utils/api-error";
+import { requireObjectId } from "../../utils/validators";
 
 const getRequestUserId = (req: Request): string => {
   const userId = req.authUser?.userId;

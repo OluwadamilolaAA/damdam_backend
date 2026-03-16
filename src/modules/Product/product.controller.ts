@@ -12,8 +12,8 @@ import {
   listProducts,
   updateProduct,
 } from "./product.service";
-import { asyncHandler } from "../utils/async-handler";
-import { requireObjectId } from "../utils/validators";
+import { asyncHandler } from "../../utils/async-handler";
+import { requireObjectId } from "../../utils/validators";
 
 export const createProductHandler = asyncHandler(async (req: Request, res: Response) => {
   const payload = parseCreateProductDto(req.body);

@@ -4,43 +4,37 @@ exports.parseRegisterDto = parseRegisterDto;
 exports.parseLoginDto = parseLoginDto;
 exports.parseForgotPasswordDto = parseForgotPasswordDto;
 exports.parseResetPasswordDto = parseResetPasswordDto;
-const api_error_1 = require("../utils/api-error");
-const validators_1 = require("../utils/validators");
+const zod_1 = require("zod");
+const zod_2 = require("../utils/zod");
+const registerSchema = zod_1.z.object({
+    name: zod_1.z.string().trim().min(1, "name is required"),
+    email: zod_1.z.string().trim().email("A valid email is required").toLowerCase(),
+    password: zod_1.z.string().trim().min(8, "password must be at least 8 characters"),
+});
+const loginSchema = zod_1.z.object({
+    email: zod_1.z.string().trim().email("A valid email is required").toLowerCase(),
+    password: zod_1.z.string().trim().min(1, "password is required"),
+});
+const forgotPasswordSchema = zod_1.z.object({
+    email: zod_1.z.string().trim().email("A valid email is required").toLowerCase(),
+});
+const resetPasswordSchema = zod_1.z.object({
+    email: zod_1.z.string().trim().email("A valid email is required").toLowerCase(),
+    otp: zod_1.z.string().trim().regex(/^\d{6}$/, "otp must be a 6-digit code"),
+    newPassword: zod_1.z
+        .string()
+        .trim()
+        .min(8, "newPassword must be at least 8 characters"),
+});
 function parseRegisterDto(body) {
-    const data = body;
-    const password = (0, validators_1.requireString)(data.password, "password");
-    if (password.length < 8) {
-        throw new api_error_1.ApiError(400, "password must be at least 8 characters");
-    }
-    return {
-        name: (0, validators_1.requireString)(data.name, "name"),
-        email: (0, validators_1.requireEmail)(data.email),
-        password,
-    };
+    return (0, zod_2.parseWithSchema)(registerSchema, body);
 }
 function parseLoginDto(body) {
-    const data = body;
-    return {
-        email: (0, validators_1.requireEmail)(data.email),
-        password: (0, validators_1.requireString)(data.password, "password"),
-    };
+    return (0, zod_2.parseWithSchema)(loginSchema, body);
 }
 function parseForgotPasswordDto(body) {
-    const data = body;
-    return {
-        email: (0, validators_1.requireEmail)(data.email),
-    };
+    return (0, zod_2.parseWithSchema)(forgotPasswordSchema, body);
 }
 function parseResetPasswordDto(body) {
-    const data = body;
-    const email = (0, validators_1.requireEmail)(data.email);
-    const otp = (0, validators_1.requireString)(data.otp, "otp");
-    const newPassword = (0, validators_1.requireString)(data.newPassword, "newPassword");
-    if (!/^\d{6}$/.test(otp)) {
-        throw new api_error_1.ApiError(400, "otp must be a 6-digit code");
-    }
-    if (newPassword.length < 8) {
-        throw new api_error_1.ApiError(400, "newPassword must be at least 8 characters");
-    }
-    return { email, otp, newPassword };
+    return (0, zod_2.parseWithSchema)(resetPasswordSchema, body);
 }

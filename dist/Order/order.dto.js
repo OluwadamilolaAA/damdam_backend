@@ -2,23 +2,21 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseUpdateOrderStatusDto = exports.parseCreateOrderDto = void 0;
 const order_model_1 = require("../Order/order.model");
-const api_error_1 = require("../utils/api-error");
-const validators_1 = require("../utils/validators");
+const zod_1 = require("zod");
+const zod_2 = require("../utils/zod");
+const createOrderSchema = zod_1.z.object({
+    notes: zod_1.z.string().trim().min(1, "notes is required").optional(),
+});
+const updateOrderStatusSchema = zod_1.z.object({
+    status: zod_1.z.nativeEnum(order_model_1.OrderStatus, {
+        error: "status must be one of: PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED",
+    }),
+});
 const parseCreateOrderDto = (body) => {
-    const data = (body ?? {});
-    if (data.notes === undefined || data.notes === null) {
-        return {};
-    }
-    return { notes: (0, validators_1.requireString)(data.notes, "notes") };
+    return (0, zod_2.parseWithSchema)(createOrderSchema, body ?? {});
 };
 exports.parseCreateOrderDto = parseCreateOrderDto;
 const parseUpdateOrderStatusDto = (body) => {
-    const data = body;
-    if (data.status === undefined || data.status === null) {
-        throw new api_error_1.ApiError(400, "status is required");
-    }
-    return {
-        status: (0, validators_1.requireEnum)(data.status, Object.values(order_model_1.OrderStatus), "status"),
-    };
+    return (0, zod_2.parseWithSchema)(updateOrderStatusSchema, body);
 };
 exports.parseUpdateOrderStatusDto = parseUpdateOrderStatusDto;

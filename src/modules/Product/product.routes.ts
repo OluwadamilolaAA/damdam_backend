@@ -6,8 +6,8 @@ import {
   listAllProductsAdminHandler,
   listProductsHandler,
   updateProductHandler,
-} from "../Product/product.controller";
-import { requireAuth, requireRole } from "../middlewares/auth.middleware";
+} from "./product.controller";
+import { requireAuth, requireRole } from "../../middlewares/auth.middleware";
 import { Role } from "../Auth/auth.model";
 
 const router = Router();

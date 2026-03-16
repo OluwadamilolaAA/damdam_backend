@@ -9,9 +9,9 @@ import {
   getMyOrders,
   updateOrderStatus,
 } from "./order.service";
-import { asyncHandler } from "../utils/async-handler";
-import { ApiError } from "../utils/api-error";
-import { requireObjectId } from "../utils/validators";
+import { asyncHandler } from "../../utils/async-handler";
+import { ApiError } from "../../utils/api-error";
+import { requireObjectId } from "../../utils/validators";
 
 const getRequestUser = (req: Request) => {
   if (!req.authUser) {

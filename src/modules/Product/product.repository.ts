@@ -1,4 +1,4 @@
-import ProductModel, { ProductDocument } from "../Product/product.model";
+import ProductModel, { ProductDocument } from "./product.model";
 
 export interface ListProductsRepositoryInput {
   filter: Record<string, unknown>;

@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.googleAuthCallbackHandler = exports.googleAuthHandler = exports.resetPasswordHandler = exports.forgotPasswordHandler = exports.logoutHandler = exports.refreshHandler = exports.loginHandler = exports.registerHandler = void 0;
 const passport_1 = __importDefault(require("passport"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const auth_dto_1 = require("./auth.dto");
 const async_handler_1 = require("../utils/async-handler");
 const api_error_1 = require("../utils/api-error");
@@ -12,7 +13,6 @@ const cookies_1 = require("../utils/cookies");
 const auth_service_1 = require("./auth.service");
 const env_1 = require("../config/env");
 const passport_2 = require("../config/passport");
-const token_1 = require("../utils/token");
 exports.registerHandler = (0, async_handler_1.asyncHandler)(async (req, res) => {
     const payload = (0, auth_dto_1.parseRegisterDto)(req.body);
     const result = await (0, auth_service_1.register)(payload);
@@ -45,11 +45,11 @@ exports.refreshHandler = (0, async_handler_1.asyncHandler)(async (req, res) => {
 exports.logoutHandler = (0, async_handler_1.asyncHandler)(async (req, res) => {
     const refreshToken = req.cookies?.refreshToken;
     if (refreshToken) {
-        try {
-            const payload = (0, token_1.verifyRefreshToken)(refreshToken);
-            await (0, auth_service_1.logout)(payload.sub);
-        }
-        catch {
+        // Decode directly to still log out even if token is expired.
+        // We don't care about it being verified here, we just want to remove exactly it from DB.
+        const decoded = jsonwebtoken_1.default.decode(refreshToken);
+        if (decoded && decoded.sub) {
+            await (0, auth_service_1.logout)(decoded.sub, refreshToken);
         }
     }
     (0, cookies_1.clearRefreshTokenCookie)(res);

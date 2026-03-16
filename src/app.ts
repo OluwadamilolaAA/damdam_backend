@@ -6,12 +6,12 @@ import passport from "passport";
 import { initializePassport } from "./config/passport";
 import { env } from "./config/env";
 import { errorHandler, notFound } from "./middlewares/error.middleware";
-import authRoutes from "./Auth/auth.routes";
-import cartRoutes from "./Cart/cart.routes";
+import authRoutes from "./modules/Auth/auth.routes";
+import cartRoutes from "./modules/Cart/cart.routes";
 import docsRoutes from "./routes/docs.routes";
 import healthRoutes from "./routes/health.routes";
-import orderRoutes from "./Order/order.routes";
-import productRoutes from "./Product/product.routes";
+import orderRoutes from "./modules/Order/order.routes";
+import productRoutes from "./modules/Product/product.routes";
 import userRoutes from "./User/user.routes";
 
 const app = express();

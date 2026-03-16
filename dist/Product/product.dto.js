@@ -1,126 +1,109 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseListProductsQueryDto = exports.parseUpdateProductDto = exports.parseCreateProductDto = void 0;
-const api_error_1 = require("../utils/api-error");
-const validators_1 = require("../utils/validators");
-const parseOptionalString = (value, field) => {
-    if (value === undefined || value === null) {
+const zod_1 = require("zod");
+const zod_2 = require("../utils/zod");
+const nonEmptyString = (field) => zod_1.z.string().trim().min(1, `${field} is required`);
+const normalizeQueryValue = (value) => Array.isArray(value) ? value[0] : value;
+const queryString = (field) => zod_1.z.preprocess(normalizeQueryValue, zod_1.z.string({ error: `${field} must be a string` }));
+const optionalQueryString = (field) => zod_1.z.preprocess((value) => {
+    const normalized = normalizeQueryValue(value);
+    if (normalized === undefined || normalized === null) {
         return undefined;
     }
-    return (0, validators_1.requireString)(value, field);
-};
-const parseNonNegativeNumber = (value, field) => {
-    if (typeof value !== "number" || Number.isNaN(value) || value < 0) {
-        throw new api_error_1.ApiError(400, `${field} must be a non-negative number`);
-    }
-    return value;
-};
-const getQueryStringValue = (value, field) => {
-    if (value === undefined || value === null) {
+    return normalized;
+}, zod_1.z.string({ error: `${field} must be a string` }).optional());
+const nonNegativeNumber = (field) => zod_1.z
+    .number({ error: `${field} must be a non-negative number` })
+    .refine((value) => !Number.isNaN(value) && value >= 0, {
+    error: `${field} must be a non-negative number`,
+});
+const optionalNonNegativeNumberFromQuery = (field) => zod_1.z.preprocess((value) => {
+    const normalized = normalizeQueryValue(value);
+    if (normalized === undefined || normalized === null || normalized === "") {
         return undefined;
     }
-    if (Array.isArray(value)) {
-        const firstValue = value[0];
-        if (typeof firstValue !== "string") {
-            throw new api_error_1.ApiError(400, `${field} must be a string`);
-        }
-        return firstValue;
+    if (typeof normalized === "number") {
+        return normalized;
     }
-    if (typeof value !== "string") {
-        throw new api_error_1.ApiError(400, `${field} must be a string`);
+    if (typeof normalized === "string") {
+        return Number(normalized);
     }
-    return value;
-};
-const parseOptionalNonNegativeNumberFromQuery = (value, field) => {
-    const raw = getQueryStringValue(value, field);
-    if (raw === undefined || raw.trim() === "") {
-        return undefined;
-    }
-    const parsed = Number(raw);
-    if (Number.isNaN(parsed) || parsed < 0) {
-        throw new api_error_1.ApiError(400, `${field} must be a non-negative number`);
-    }
-    return parsed;
-};
-const parsePositiveIntegerFromQuery = (value, field, defaultValue, maxValue) => {
-    const raw = getQueryStringValue(value, field);
-    if (raw === undefined || raw.trim() === "") {
+    return normalized;
+}, nonNegativeNumber(field).optional());
+const positiveIntegerFromQuery = (field, defaultValue, maxValue) => zod_1.z
+    .preprocess((value) => {
+    const normalized = normalizeQueryValue(value);
+    if (normalized === undefined || normalized === null || normalized === "") {
         return defaultValue;
     }
-    const parsed = Number(raw);
-    if (!Number.isInteger(parsed) || parsed < 1) {
-        throw new api_error_1.ApiError(400, `${field} must be a positive integer`);
+    if (typeof normalized === "number") {
+        return normalized;
     }
-    if (maxValue !== undefined) {
-        return Math.min(parsed, maxValue);
+    if (typeof normalized === "string") {
+        return Number(normalized);
     }
-    return parsed;
-};
-const parseCreateProductDto = (body) => {
-    const data = body;
-    return {
-        name: (0, validators_1.requireString)(data.name, "name"),
-        description: parseOptionalString(data.description, "description"),
-        price: parseNonNegativeNumber(data.price, "price"),
-        stock: parseNonNegativeNumber(data.stock, "stock"),
-        category: parseOptionalString(data.category, "category"),
-    };
-};
+    return normalized;
+}, zod_1.z.number({ error: `${field} must be a positive integer` }))
+    .refine((value) => Number.isInteger(value) && value >= 1, `${field} must be a positive integer`)
+    .transform((value) => (maxValue !== undefined ? Math.min(value, maxValue) : value));
+const createProductSchema = zod_1.z.object({
+    name: nonEmptyString("name"),
+    description: nonEmptyString("description").optional(),
+    price: nonNegativeNumber("price"),
+    stock: nonNegativeNumber("stock"),
+    category: nonEmptyString("category").optional(),
+});
+const updateProductSchema = zod_1.z
+    .object({
+    name: nonEmptyString("name").optional(),
+    description: nonEmptyString("description").optional(),
+    price: nonNegativeNumber("price").optional(),
+    stock: nonNegativeNumber("stock").optional(),
+    category: nonEmptyString("category").optional(),
+    isActive: zod_1.z.boolean({ error: "isActive must be a boolean" }).optional(),
+})
+    .refine((payload) => Object.keys(payload).length > 0, {
+    error: "At least one field is required for update",
+});
+const listProductsQueryBaseSchema = zod_1.z.object({
+    category: optionalQueryString("category"),
+    minPrice: optionalNonNegativeNumberFromQuery("minPrice"),
+    maxPrice: optionalNonNegativeNumberFromQuery("maxPrice"),
+    search: optionalQueryString("search"),
+    page: positiveIntegerFromQuery("page", 1),
+    limit: positiveIntegerFromQuery("limit", 10, 100),
+    sort: optionalQueryString("sort"),
+});
+const listProductsQuerySchema = listProductsQueryBaseSchema.superRefine((data, ctx) => {
+    if (data.minPrice !== undefined &&
+        data.maxPrice !== undefined &&
+        data.minPrice > data.maxPrice) {
+        ctx.addIssue({
+            code: "custom",
+            message: "minPrice cannot be greater than maxPrice",
+            path: ["minPrice"],
+        });
+    }
+});
+const parseCreateProductDto = (body) => (0, zod_2.parseWithSchema)(createProductSchema, body);
 exports.parseCreateProductDto = parseCreateProductDto;
-const parseUpdateProductDto = (body) => {
-    const data = body;
-    const payload = {};
-    if (data.name !== undefined) {
-        payload.name = (0, validators_1.requireString)(data.name, "name");
-    }
-    if (data.description !== undefined) {
-        payload.description = parseOptionalString(data.description, "description");
-    }
-    if (data.price !== undefined) {
-        payload.price = parseNonNegativeNumber(data.price, "price");
-    }
-    if (data.stock !== undefined) {
-        payload.stock = parseNonNegativeNumber(data.stock, "stock");
-    }
-    if (data.category !== undefined) {
-        payload.category = parseOptionalString(data.category, "category");
-    }
-    if (data.isActive !== undefined) {
-        if (typeof data.isActive !== "boolean") {
-            throw new api_error_1.ApiError(400, "isActive must be a boolean");
-        }
-        payload.isActive = data.isActive;
-    }
-    if (Object.keys(payload).length === 0) {
-        throw new api_error_1.ApiError(400, "At least one field is required for update");
-    }
-    return payload;
-};
+const parseUpdateProductDto = (body) => (0, zod_2.parseWithSchema)(updateProductSchema, body);
 exports.parseUpdateProductDto = parseUpdateProductDto;
 const parseListProductsQueryDto = (query) => {
-    const data = query;
-    const categoryQuery = getQueryStringValue(data.category, "category");
-    const search = getQueryStringValue(data.search, "search")?.trim();
-    const sort = getQueryStringValue(data.sort, "sort");
-    const minPrice = parseOptionalNonNegativeNumberFromQuery(data.minPrice, "minPrice");
-    const maxPrice = parseOptionalNonNegativeNumberFromQuery(data.maxPrice, "maxPrice");
-    if (minPrice !== undefined &&
-        maxPrice !== undefined &&
-        minPrice > maxPrice) {
-        throw new api_error_1.ApiError(400, "minPrice cannot be greater than maxPrice");
-    }
-    const categories = categoryQuery
+    const parsed = (0, zod_2.parseWithSchema)(listProductsQuerySchema, (query ?? {}));
+    const categories = parsed.category
         ?.split(",")
         .map((value) => value.trim())
         .filter(Boolean);
     return {
         categories: categories && categories.length > 0 ? categories : undefined,
-        minPrice,
-        maxPrice,
-        search: search || undefined,
-        page: parsePositiveIntegerFromQuery(data.page, "page", 1),
-        limit: parsePositiveIntegerFromQuery(data.limit, "limit", 10, 100),
-        sort: sort?.trim() || undefined,
+        minPrice: parsed.minPrice,
+        maxPrice: parsed.maxPrice,
+        search: parsed.search?.trim() || undefined,
+        page: parsed.page,
+        limit: parsed.limit,
+        sort: parsed.sort?.trim() || undefined,
     };
 };
 exports.parseListProductsQueryDto = parseListProductsQueryDto;
