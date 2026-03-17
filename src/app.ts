@@ -2,6 +2,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import morgan from "morgan";
 import passport from "passport";
 import { initializePassport } from "./config/passport";
 import { env } from "./config/env";
@@ -12,6 +13,7 @@ import docsRoutes from "./routes/docs.routes";
 import healthRoutes from "./routes/health.routes";
 import orderRoutes from "./modules/Order/order.routes";
 import productRoutes from "./modules/Product/product.routes";
+import categoryRoutes from "./modules/Category/category.routes";
 import userRoutes from "./User/user.routes";
 
 const app = express();
@@ -25,6 +27,7 @@ app.use(
   })
 );
 app.use(express.json({ limit: "1mb" }));
+app.use(morgan("dev"));
 app.use(cookieParser());
 app.use(passport.initialize());
 
@@ -34,6 +37,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/categories", categoryRoutes);
 app.use("/api", docsRoutes);
 
 app.use(notFound);

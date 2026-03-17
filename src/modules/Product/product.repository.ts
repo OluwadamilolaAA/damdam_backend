@@ -12,13 +12,18 @@ export const productRepository = {
     return ProductModel.create(data);
   },
   findAll(query: Record<string, unknown> = {}) {
-    return ProductModel.find(query).sort({ createdAt: -1 }).exec();
+    return ProductModel.find(query)
+      .populate("category", "name")
+      .sort({ createdAt: -1 })
+      .exec();
   },
   findById(productId: string) {
-    return ProductModel.findById(productId).exec();
+    return ProductModel.findById(productId).populate("category", "name").exec();
   },
   updateById(productId: string, update: Partial<ProductDocument>) {
-    return ProductModel.findByIdAndUpdate(productId, update, { returnDocument: 'after' }).exec();
+    return ProductModel.findByIdAndUpdate(productId, update, {
+      returnDocument: "after",
+    }).exec();
   },
   deleteById(productId: string) {
     return ProductModel.findByIdAndDelete(productId).exec();
@@ -28,6 +33,7 @@ export const productRepository = {
 
     const [products, total] = await Promise.all([
       ProductModel.find(input.filter)
+        .populate("category", "name")
         .sort(input.sort)
         .skip(skip)
         .limit(input.limit)

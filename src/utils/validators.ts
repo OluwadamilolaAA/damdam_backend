@@ -1,5 +1,6 @@
 import { ApiError } from "./api-error";
 import { Types } from "mongoose";
+import mongoose from "mongoose";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -48,3 +49,9 @@ export function requirePositiveInt(value: unknown, field: string): number {
   }
   return value;
 }
+
+export const validateObjectId = (id: string, field = "id") => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, `Invalid ${field}`);
+  }
+};

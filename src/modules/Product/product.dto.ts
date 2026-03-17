@@ -76,7 +76,7 @@ const createProductSchema = z.object({
   description: nonEmptyString("description").optional(),
   price: nonNegativeNumber("price"),
   stock: nonNegativeNumber("stock"),
-  category: nonEmptyString("category").optional(),
+  category: z.string().optional(),
 });
 
 const updateProductSchema = z
@@ -85,7 +85,7 @@ const updateProductSchema = z
     description: nonEmptyString("description").optional(),
     price: nonNegativeNumber("price").optional(),
     stock: nonNegativeNumber("stock").optional(),
-    category: nonEmptyString("category").optional(),
+    category: z.string().optional(),
     isActive: z.boolean({ error: "isActive must be a boolean" }).optional(),
   })
   .refine((payload) => Object.keys(payload).length > 0, {
@@ -93,7 +93,7 @@ const updateProductSchema = z
   });
 
 const listProductsQueryBaseSchema = z.object({
-  category: optionalQueryString("category"),
+  categoryId: optionalQueryString("categoryId"),
   minPrice: optionalNonNegativeNumberFromQuery("minPrice"),
   maxPrice: optionalNonNegativeNumberFromQuery("maxPrice"),
   search: optionalQueryString("search"),
@@ -120,7 +120,7 @@ export type CreateProductDto = z.infer<typeof createProductSchema>;
 export type UpdateProductDto = z.infer<typeof updateProductSchema>;
 
 export interface ListProductsQueryDto {
-  categories?: string[];
+  categoryId?: string;
   minPrice?: number;
   maxPrice?: number;
   search?: string;
@@ -136,15 +136,13 @@ export const parseUpdateProductDto = (body: unknown): UpdateProductDto =>
   parseWithSchema(updateProductSchema, body);
 
 export const parseListProductsQueryDto = (query: unknown): ListProductsQueryDto => {
-  const parsed = parseWithSchema(listProductsQuerySchema, (query ?? {}) as Record<string, unknown>);
-
-  const categories = parsed.category
-    ?.split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
+  const parsed = parseWithSchema(
+    listProductsQuerySchema,
+    (query ?? {}) as Record<string, unknown>
+  );
 
   return {
-    categories: categories && categories.length > 0 ? categories : undefined,
+    categoryId: parsed.categoryId,
     minPrice: parsed.minPrice,
     maxPrice: parsed.maxPrice,
     search: parsed.search?.trim() || undefined,

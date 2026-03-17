@@ -7,8 +7,30 @@ import { ProductDocument } from "./product.model";
 import { productRepository } from "./product.repository";
 import { ApiError } from "../../utils/api-error";
 
+import mongoose from "mongoose";
+import { CategoryModel } from "../Category/category.model";
+
 export const createProduct = async (input: CreateProductDto) => {
-  return productRepository.create(input);
+  if (input.category) {
+    if (!mongoose.Types.ObjectId.isValid(input.category)) {
+      throw new ApiError(400, "Invalid category id");
+    }
+
+    const exists = await CategoryModel.exists({ _id: input.category });
+
+    if (!exists) {
+      throw new ApiError(400, "Category does not exist");
+    }
+  }
+
+  const data = {
+    ...input,
+    category: input.category
+      ? new mongoose.Types.ObjectId(input.category)
+      : undefined,
+  };
+
+  return productRepository.create(data);
 };
 
 interface ListProductsResponseMeta {
@@ -25,8 +47,6 @@ interface ListProductsResponse {
   meta: ListProductsResponseMeta;
 }
 
-const escapeRegex = (value: string) =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const buildProductFilter = (
   input: ListProductsQueryDto,
@@ -35,12 +55,11 @@ const buildProductFilter = (
     isActive: true,
   };
 
-  if (input.categories && input.categories.length > 0) {
-    filter.category = {
-      $in: input.categories.map(
-        (category) => new RegExp(`^${escapeRegex(category)}$`, "i"),
-      ),
-    };
+   if (input.categoryId) {
+    if (!mongoose.Types.ObjectId.isValid(input.categoryId)) {
+      throw new ApiError(400, "Invalid categoryId");
+    }
+    filter.category = new mongoose.Types.ObjectId(input.categoryId);
   }
 
   if (input.minPrice !== undefined || input.maxPrice !== undefined) {
@@ -144,10 +163,31 @@ export const updateProduct = async (
   productId: string,
   input: UpdateProductDto,
 ) => {
-  const updated = await productRepository.updateById(productId, input);
+  if (input.category) {
+    if (!mongoose.Types.ObjectId.isValid(input.category)) {
+      throw new ApiError(400, "Invalid category id");
+    }
+
+    const exists = await CategoryModel.exists({ _id: input.category });
+
+    if (!exists) {
+      throw new ApiError(400, "Category does not exist");
+    }
+  }
+
+  const updateData = {
+    ...input,
+    category: input.category
+      ? new mongoose.Types.ObjectId(input.category)
+      : undefined,
+  };
+
+  const updated = await productRepository.updateById(productId, updateData);
+
   if (!updated) {
     throw new ApiError(404, "Product not found");
   }
+
   return updated;
 };
 
