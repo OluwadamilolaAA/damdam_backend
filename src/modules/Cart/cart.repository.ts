@@ -1,4 +1,5 @@
 import CartModel from "./cart.model";
+import mongoose from "mongoose"
 
 export const cartRepository = {
   findByUserId(userId: string) {
@@ -9,6 +10,9 @@ export const cartRepository = {
       .populate("items.productId", "name price stock isActive")
       .exec();
   },
+  findByUserIdWithSession(userId: string, session: mongoose.ClientSession) {
+  return CartModel.findOne({ user: userId }).session(session);
+},
   createForUser(userId: string) {
     return CartModel.create({ user: userId, items: [] });
   },

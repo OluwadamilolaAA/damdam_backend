@@ -10,7 +10,7 @@ const CategorySchema = new Schema<CategoryDocument>(
   {
     name: { type: String, required: true, unique: true, trim: true },
   },
-  { timestamps: true }
+  { timestamps: true, versionKey: false }
 );
 
 export const CategoryModel = model<CategoryDocument>("Category", CategorySchema);

@@ -8,6 +8,7 @@ export interface CartItem {
 export interface CartDocument extends Document {
   user: Types.ObjectId;
   items: CartItem[];
+  isCheckingOut: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +30,7 @@ const CartSchema = new Schema<CartDocument>(
       unique: true,
       index: true,
     },
+    isCheckingOut: { type: Boolean, default: false },
     items: { type: [CartItemSchema], default: [] },
   },
   { timestamps: true, versionKey: false }

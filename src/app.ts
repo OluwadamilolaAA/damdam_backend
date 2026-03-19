@@ -14,6 +14,7 @@ import healthRoutes from "./routes/health.routes";
 import orderRoutes from "./modules/Order/order.routes";
 import productRoutes from "./modules/Product/product.routes";
 import categoryRoutes from "./modules/Category/category.routes";
+import paymentRoutes from "./modules/Payment/payment.routes";
 import userRoutes from "./User/user.routes";
 
 const app = express();
@@ -38,6 +39,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api/payments", paymentRoutes);
 app.use("/api", docsRoutes);
 
 app.use(notFound);

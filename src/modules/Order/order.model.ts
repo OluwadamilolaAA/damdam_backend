@@ -30,6 +30,7 @@ export interface OrderDocument extends Document {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   notes?: string;
+  paymentId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,12 +43,17 @@ const OrderItemSchema = new Schema<OrderItem>(
     quantity: { type: Number, required: true, min: 1 },
     lineTotal: { type: Number, required: true, min: 0 },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const OrderSchema = new Schema<OrderDocument>(
   {
-    user: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
     items: { type: [OrderItemSchema], required: true, default: [] },
     subtotal: { type: Number, required: true, min: 0 },
     shippingFee: { type: Number, required: true, min: 0, default: 0 },
@@ -64,16 +70,17 @@ const OrderSchema = new Schema<OrderDocument>(
       default: PaymentStatus.UNPAID,
       index: true,
     },
+    paymentId: { type: String, index: true },
     notes: { type: String, trim: true },
   },
-  { timestamps: true, versionKey: false }
+  { timestamps: true, versionKey: false },
 );
 
 OrderSchema.index({ createdAt: -1 });
 
 export const OrderModel: Model<OrderDocument> = mongoose.model<OrderDocument>(
   "Order",
-  OrderSchema
+  OrderSchema,
 );
 
 export default OrderModel;

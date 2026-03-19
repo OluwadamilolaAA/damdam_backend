@@ -23,8 +23,12 @@ const getRequestUser = (req: Request) => {
 export const createOrderHandler = asyncHandler(async (req: Request, res: Response) => {
   const user = getRequestUser(req);
   const payload = parseCreateOrderDto(req.body);
-  const order = await createOrderFromCart(user.userId, payload.notes);
-  res.status(201).json({ order });
+  const result = await createOrderFromCart(user.userId, payload.notes);
+
+res.status(201).json({
+  order: result.order,
+  paymentUrl: result.paymentUrl,
+});
 });
 
 export const myOrdersHandler = asyncHandler(async (req: Request, res: Response) => {
